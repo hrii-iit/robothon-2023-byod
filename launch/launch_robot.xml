@@ -1,0 +1,143 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="sim" default="true"/>
+    <arg name="controller"  default="cart_hybrid_motion_force_controller"     doc="Which example controller should be started? (One of {cartesian_impedance,model,force,joint_position,joint_velocity}_example_controller)" />
+    <arg name="controller_config_file" default="" doc="Controller config file .yaml" />
+    <!-- <arg name="controller_desired_pose_topic" default="$(arg controller)/desired_tool_pose"/> -->
+    <arg name="control_node_config_file" value="$(find hrii_task_board_fsm)/config/controllers/franka_control_node.yaml"/>
+
+    <arg name="launch_gripper" default="no_gripper" doc="Select the gripper you want 
+        to apply to the robot flange from this list: https://gitlab.iit.it/hrii/robotics/common/hrii_robot_interface/-/blob/noetic-devel/hrii_gri_interface/urdf/all_grippers.urdf.xacro"/>
+    <arg name="gripper_brand" default="no_gripper"/>
+    <arg name="gripper_config_file" default=""/>
+    <arg name="F_T_NE" default="1 0 0 0
+                                 0 1 0 0
+                                 0 0 1 0
+                                 0 0 0 1" doc="End effector pose wrt robot flange. The matrix is transposed"/>
+    <arg name="gripper_mass" default="0.0"/>
+
+    <!-- Simulation group -->
+    <group if="$(arg sim)">
+        <!-- Gazebo & GUI Configuration -->
+        <arg name="gazebo"      default="true"  doc="Should the gazebo simulation be launched? Use false in case if you want to include this file and launch gazebo yourself" />
+        <arg name="headless"    default="false" doc="Should the gazebo GUI be launched?" />
+        <arg name="paused"      default="false" doc="Should the simulation directly be stopped at 0s?" />
+        <arg name="world"       default="worlds/empty.world" doc="Filename to a SDF World for gazebo to use" />
+        <arg name="rviz"        default="false" doc="Should RVIz be launched?" />
+
+        <!-- Robot Customization -->
+        <arg name="arm_id"      default="franka_left" doc="Name of the robot to spawn" />
+        <arg name="robot_ip"    default="" doc="IP of the robot" />
+        <arg name="robot_urdf"  default="$(find franka_description)/robots/panda/panda.urdf.xacro" doc="URDF file of the robot"/>
+        <arg name="use_gripper" default="false"  doc="Should a franka hand be mounted on the flange?" />
+        <arg name="x"           default="0"     doc="How far forward to place the base of the robot in [m]?" />
+        <arg name="y"           default="0"     doc="How far leftwards to place the base of the robot in [m]?" />
+        <arg name="z"           default="0"     doc="How far upwards to place the base of the robot in [m]?" />
+        <arg name="roll"        default="0"     doc="How much to rotate the base of the robot around its X-axis in [rad]?" />
+        <arg name="pitch"       default="0"     doc="How much to rotate the base of the robot around its Y-axis in [rad]?" />
+        <arg name="yaw"         default="0"     doc="How much to rotate the base of the robot around its Z-axis in [rad]?" />
+        <arg name="xacro_args"  default=""      doc="Additional arguments to pass to panda.urdf.xacro" />
+        <arg name="initial_joint_positions"
+            doc="Initial joint configuration of the panda. Specify as a list of name/value pairs in form of '-J [name-of-joint] [value-in-rad]'. Default is a 90 degree bend in the elbow"
+            default="-J $(arg arm_id)_joint1 0
+                        -J $(arg arm_id)_joint2 -0.785398163
+                        -J $(arg arm_id)_joint3 0
+                        -J $(arg arm_id)_joint4 -2.35619449
+                        -J $(arg arm_id)_joint5 0
+                        -J $(arg arm_id)_joint6 1.57079632679
+                        -J $(arg arm_id)_joint7 0.785398163397
+                        -J $(arg arm_id)_finger_joint1 0.001
+                        -J $(arg arm_id)_finger_joint2 0.001"/>
+        <arg name="launch_interactive_marker" default="false" doc="Should the interactive marker node be started?" />
+
+        <param name="robot_description"
+                command="xacro $(arg robot_urdf)
+                        gazebo:=true
+                        hand:=$(arg use_gripper)
+                        arm_id:=$(arg arm_id)
+                        xyz:='$(arg x) $(arg y) $(arg z)'
+                        rpy:='$(arg roll) $(arg pitch) $(arg yaw)'
+                        $(arg xacro_args)"/>
+
+        <rosparam file="$(find franka_gazebo)/config/franka_hw_sim.yaml" subst_value="true" />
+        <rosparam file="$(find franka_gazebo)/config/sim_controllers.yaml" subst_value="true" />
+        <rosparam file="$(find franka_controllers)/config/franka_controllers.yaml" subst_value="true" />
+
+        <!-- Gripper params -->
+        <param name="m_ee" value="$(arg gripper_mass)"/>
+        <param name="F_T_NE" value="$(arg F_T_NE)"/>
+
+        <!-- <arg name="unpause" value="$(eval '' if arg('paused') else '-unpause')" /> -->
+        <arg name="unpause" value="" />
+        <node name="$(arg arm_id)_model_spawner" pkg="gazebo_ros" type="spawn_model"
+                args="-param robot_description -urdf -model $(arg arm_id) $(arg unpause)
+                    $(arg initial_joint_positions)"/>
+        
+        <!-- Spawn required ROS controllers -->
+        <!-- <node if="$(arg use_gripper)" pkg="controller_manager" type="spawner" name="$(arg arm_id)_gripper_spawner"
+                args="franka_gripper" respawn="false"/> -->
+
+        <!-- spawns the controller after the robot was put into its initial joint pose -->
+        <node pkg="controller_manager" type="spawner" name="$(arg arm_id)_controller_spawner"
+                respawn="false" output="screen"
+                args="--wait-for initialized franka_state_controller $(arg controller)"/>
+
+        <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+        <node name="joint_state_publisher" type="joint_state_publisher" pkg="joint_state_publisher">
+            <rosparam param="source_list">[franka_state_controller/joint_states, franka_gripper/joint_states] </rosparam>
+            <param name="rate" value="30"/>
+        </node>
+        
+    </group>
+
+    <!-- Hardware group -->
+    <group unless="$(arg sim)">
+    
+        <include file="$(find franka_control)/launch/franka_control.launch" pass_all_args="true">
+            <arg name="load_gripper" value="false"/>
+            <arg name="robot_xacro" value="$(arg robot_urdf)" />
+            <arg name="control_node_config_file" value="$(arg control_node_config_file)"/>
+        </include>
+
+        <rosparam command="load" file="$(find franka_example_controllers)/config/franka_example_controllers.yaml" subst_value="true" />
+        <rosparam file="$(find franka_controllers)/config/franka_controllers.yaml" subst_value="true" />
+
+        <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="$(arg controller)"/>
+        
+        <!-- Static tf to connect world and robots -->
+        <node if="$(eval arm_id == 'franka_left')" pkg="tf2_ros" type="static_transform_publisher" name="world_franka_left_br" args="$(arg x) $(arg y) $(arg z) $(arg yaw) 0 0 world franka_left_link0"/>
+        <node if="$(eval arm_id == 'franka_right')" pkg="tf2_ros" type="static_transform_publisher" name="world_franka_right_br" args="$(arg x) $(arg y) $(arg z) $(arg yaw) 0 0 world franka_right_link0"/>
+
+    </group>
+
+    <node pkg="dynamic_reconfigure" type="dynparam" name="dynamic_reconfigure_load" args="load $(arg controller)/dyn_rec_ctrl_param $(arg controller_config_file)"/>
+
+    <!-- Start only if cartesian_impedance_example_controller -->
+    <node name="interactive_marker" pkg="franka_example_controllers" type="interactive_marker.py"
+            if="$(arg launch_interactive_marker)">
+        <param name="link_name" value="$(arg arm_id)_link0" />
+        <remap to="$(arg controller_desired_pose_topic)" from="equilibrium_pose"/>
+    </node>
+
+    <!-- Load gripper interface -->
+    <include file="$(find hrii_gri_interface)/launch/generic_gripper.launch" pass_all_args="true">
+        <arg name="launch_rviz" value="false"/>
+        <arg name="launch_gazebo_world" value="false"/>
+        <arg name="arm_prefix" value="$(arg arm_id)"/>
+        <arg name="interface_type" value="SIMULATION" if="$(arg sim)"/>
+        <arg name="interface_type" value="HARDWARE" unless="$(arg sim)"/>
+        <arg name="gripper_ip" value="$(arg robot_ip)"/>
+    </include>
+
+    <!-- Trajectory planner -->
+    <include file="$(find hrii_trajectory_planner)/launch/trajectory_handler.launch">
+        <arg name="trajectory_planner_type" value="QUINTIC_POL"/>
+        <arg name="inertial_frame_name" value="$(arg arm_id)_link0"/>
+        <!-- <arg name="moving_frame_name" value="$(arg arm_id)_EE"/> -->
+        <arg name="moving_frame_name" value="$(arg arm_id)_task_frame"/>
+        <arg name="desired_pose_topic" value="$(arg controller_desired_pose_topic)"/>
+        <!-- <arg name="desired_pose_topic" value="cartesian_impedance_example_controller/equilibrium_pose"/> -->
+        <arg name="debug_mode" value="true"/>
+    </include>
+
+</launch>

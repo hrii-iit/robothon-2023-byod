@@ -1,0 +1,171 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Simulation arguments -->
+    <arg name="sim" default="true" doc="If true, launch the gazebo simulation" />
+    <arg name="sim_headless" default="false" doc="If true, launch with no Gazebo GUI" />
+    <arg name="gazebo_world" default="$(find gazebo_ros)/worlds/empty_world.world"/>
+
+    <!-- RViz arguments -->
+    <arg name="launch_rviz" default="true"/>
+    <arg name="rviz_config_file" default="$(find hrii_robothon_byod)/rviz/main_fsm.rviz"/>
+    
+    <!-- BYOD arguments -->
+    <arg name="byod_order_config_file" default="$(find hrii_robothon_byod)/config/byod/default_byod_order.yaml"/>
+
+    <!-- Voltmeter circuit arguments -->
+    <arg name="voltmeter_circuit_publish_manual_tf" default="$(arg sim)"/>
+    <arg name="voltmeter_circuit_init_pose_x" default="0.054"/>
+    <arg name="voltmeter_circuit_init_pose_y" default="-0.03"/>
+    <arg name="voltmeter_circuit_init_pose_z" default="0.01"/>
+    <arg name="voltmeter_circuit_init_pose_roll" default="0.0"/>
+    <arg name="voltmeter_circuit_init_pose_pitch" default="0.0"/>
+    <arg name="voltmeter_circuit_init_pose_yaw" default="0.0"/>
+
+    <!-- Left robot arguments -->
+    <arg name="left_robot_id" default="franka_left"/>
+    <arg name="left_robot_ip" default="192.168.0.102"/>
+    <arg name="left_robot_launch_gripper" default="franka_gripper_and_realsense_d435"/>
+    <arg name="left_robot_gripper_brand" default="franka_gripper"/>
+    <arg name="left_robot_gripper_config_file" default="$(find hrii_franka_gripper_interface)/config/franka_gripper.yaml"/>
+    <arg name="left_robot_F_T_NE" default="0.7071 -0.7071 0 0 0.7071 0.7071 0 0 0 0 1 0 0 0 0.137 1" doc="End effector pose wrt robot flange. The matrix is transposed"/>
+    <arg name="left_robot_gripper_mass" default="0.760"/>
+    <arg name="left_robot_urdf" default="$(find franka_description)/robots/panda_all_grippers/panda_all_grippers.urdf.xacro"/>
+    <arg name="left_robot_xacro_args" default="launch_gripper:=$(arg left_robot_launch_gripper)"/>
+    <arg name="left_robot_controller" default="cart_hybrid_motion_force_controller"/>
+    <arg name="left_robot_controller_desired_pose_topic" default="$(arg left_robot_controller)/desired_tool_pose"/>
+    <!-- <arg name="left_robot_controller" default="cartesian_impedance_example_controller"/> -->
+    <!-- <arg name="left_robot_controller_desired_pose_topic" default="$(arg left_robot_controller)/equilibrium_pose"/> -->
+    <arg name="left_robot_init_pose_yaw" default="0"/>
+    <arg name="left_robot_init_pose_x" default="-0.383"/>
+    <arg name="left_robot_init_pose_y" default="0.268"/>
+    <arg name="left_robot_init_pose_z" default="0"/> <!-- in real world it is -0.007 -->
+    <arg name="left_robot_controller_config_file" default="$(find hrii_task_board_fsm)/config/controllers/franka_left_cart_hybrid_motion_force_controller.yaml"/>
+    <arg name="left_robot_launch_interactive_marker" default="false"/>
+
+    <!-- Robot selection -->
+    <arg name="left_robot_launch" default="true"/>
+    <arg name="right_robot_launch" default="true"/>
+
+    <!-- Right robot arguments -->
+    <arg name="right_robot_id" default="franka_right"/>
+    <arg name="right_robot_ip" default="192.168.0.101"/>
+    <arg name="right_robot_launch_gripper" default="franka_gripper"/>
+    <arg name="right_robot_gripper_brand" default="franka_gripper"/>
+    <arg name="right_robot_gripper_config_file" default="$(find hrii_franka_gripper_interface)/config/franka_gripper.yaml"/>
+    <arg name="right_robot_F_T_NE" default="0.7071 -0.7071 0 0 0.7071 0.7071 0 0 0 0 1 0 0 0 0.133 1" doc="End effector pose wrt robot flange. The matrix is transposed"/>
+    <arg name="right_robot_gripper_mass" default="0.760"/>
+    <arg name="right_robot_urdf" default="$(find franka_description)/robots/panda_all_grippers/panda_all_grippers.urdf.xacro"/>
+    <arg name="right_robot_xacro_args" default="launch_gripper:=$(arg right_robot_launch_gripper)"/>
+    <arg name="right_robot_controller" default="cart_hybrid_motion_force_controller"/>
+    <arg name="right_robot_controller_desired_pose_topic" default="$(arg right_robot_controller)/desired_tool_pose"/>
+    <!-- <arg name="right_robot_controller" default="cartesian_impedance_example_controller"/> -->
+    <!-- <arg name="right_robot_controller_desired_pose_topic" default="$(arg right_robot_controller)/equilibrium_pose"/> -->
+    <arg name="right_robot_init_pose_yaw" default="3.14159"/>
+    <arg name="right_robot_init_pose_x" default="0.475"/>
+    <arg name="right_robot_init_pose_y" default="-0.317"/>
+    <arg name="right_robot_init_pose_z" default="0"/> <!-- in real world it is -0.007 -->
+    <arg name="right_robot_controller_config_file" default="$(find hrii_task_board_fsm)/config/controllers/franka_right_cart_hybrid_motion_force_controller.yaml"/>
+    <arg name="right_robot_launch_interactive_marker" default="false"/>
+
+    <!-- Launch left robot -->
+    <group ns="$(arg left_robot_id)" if="$(arg left_robot_launch)">
+        <include file="$(find hrii_robothon_byod)/launch/launch_robot.xml" pass_all_args="true">
+            <arg name="arm_id" value="$(arg left_robot_id)"/>
+            <arg name="robot_ip" value="$(arg left_robot_ip)"/>
+            <arg name="launch_gripper" value="$(arg left_robot_launch_gripper)"/>
+            <arg name="gripper_brand" value="$(arg left_robot_gripper_brand)"/>
+            <arg name="gripper_config_file" value="$(arg left_robot_gripper_config_file)"/>
+            <arg name="F_T_NE" value="$(arg left_robot_F_T_NE)"/>
+            <arg name="gripper_mass" value="$(arg left_robot_gripper_mass)"/>
+            <arg name="robot_urdf" value="$(arg left_robot_urdf)"/>
+            <arg name="xacro_args" value="$(arg left_robot_xacro_args)"/>
+            <arg name="x" value="$(arg left_robot_init_pose_x)"/>
+            <arg name="y" value="$(arg left_robot_init_pose_y)"/>
+            <arg name="z" value="$(arg left_robot_init_pose_z)"/>
+            <arg name="yaw" value="$(arg left_robot_init_pose_yaw)"/>
+            <arg name="controller" value="$(arg left_robot_controller)"/>
+            <arg name="controller_config_file" value="$(arg left_robot_controller_config_file)"/>
+            <arg name="controller_desired_pose_topic" value="$(arg left_robot_controller_desired_pose_topic)"/>
+            <arg name="launch_interactive_marker" value="$(arg left_robot_launch_interactive_marker)"/>
+        </include>
+    </group>
+
+    <!-- Launch right robot -->
+    <group ns="$(arg right_robot_id)" if="$(arg right_robot_launch)">
+        <include file="$(find hrii_robothon_byod)/launch/launch_robot.xml" pass_all_args="true">
+            <arg name="arm_id" value="$(arg right_robot_id)"/>
+            <arg name="robot_ip" value="$(arg right_robot_ip)"/>
+            <arg name="launch_gripper" value="$(arg right_robot_launch_gripper)"/>
+            <arg name="gripper_brand" value="$(arg right_robot_gripper_brand)"/>
+            <arg name="gripper_config_file" value="$(arg right_robot_gripper_config_file)"/>
+            <arg name="F_T_NE" value="$(arg right_robot_F_T_NE)"/>
+            <arg name="gripper_mass" value="$(arg right_robot_gripper_mass)"/>
+            <arg name="robot_urdf" value="$(arg right_robot_urdf)"/>
+            <arg name="xacro_args" value="$(arg right_robot_xacro_args)"/>
+            <arg name="x" value="$(arg right_robot_init_pose_x)"/>
+            <arg name="y" value="$(arg right_robot_init_pose_y)"/>
+            <arg name="z" value="$(arg right_robot_init_pose_z)"/>
+            <arg name="yaw" value="$(arg right_robot_init_pose_yaw)"/>
+            <arg name="controller" value="$(arg right_robot_controller)"/>
+            <arg name="controller_config_file" value="$(arg right_robot_controller_config_file)"/>
+            <arg name="controller_desired_pose_topic" value="$(arg right_robot_controller_desired_pose_topic)"/>
+            <arg name="launch_interactive_marker" value="$(arg right_robot_launch_interactive_marker)"/>
+        </include>
+    </group>
+
+
+    <group if="$(arg sim)">
+        <include file="$(find gazebo_ros)/launch/empty_world.launch">
+            <arg name="world_name" value="$(arg gazebo_world)"/>
+            <arg name="paused" value="true"/>
+            <arg name="gui" value="$(eval not arg('sim_headless'))"/>
+            <arg name="use_sim_time" value="true"/>
+        </include>
+    </group>
+
+    <!-- Temporary! In the future given by perception module -->
+    <!-- Link from world to task_board_base_link -->
+    <!-- x y z roll pitch yaw -->
+    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="task_board_test_br" args="0 0 0 0 0 0.3826834 0.9238795  world task_board_base_link"/> -->
+    <node if="$(arg voltmeter_circuit_publish_manual_tf)" pkg="tf2_ros" type="static_transform_publisher" name="voltmeter_circuit_test_br" 
+            args="$(arg voltmeter_circuit_init_pose_x)
+                $(arg voltmeter_circuit_init_pose_y)
+                $(arg voltmeter_circuit_init_pose_z)
+                $(arg voltmeter_circuit_init_pose_yaw)
+                $(arg voltmeter_circuit_init_pose_pitch)
+                $(arg voltmeter_circuit_init_pose_roll)
+                world voltmeter_circuit_base_link"/>
+
+    <!-- Launch voltmeter circuit URDF -->
+    <include file="$(find hrii_gazebo_utils)/launch/spawn_urdf.launch">
+        <arg name="model_name" value="voltmeter_circuit"/>
+        <arg name="x_spawn_pose" value="$(arg voltmeter_circuit_init_pose_x)"/>
+        <arg name="y_spawn_pose" value="$(arg voltmeter_circuit_init_pose_y)"/>
+        <arg name="z_spawn_pose" value="$(arg voltmeter_circuit_init_pose_z)"/>
+        <arg name="roll_spawn_pose" value="$(arg voltmeter_circuit_init_pose_roll)"/>
+        <arg name="pitch_spawn_pose" value="$(arg voltmeter_circuit_init_pose_pitch)"/>
+        <arg name="yaw_spawn_pose" value="$(arg voltmeter_circuit_init_pose_yaw)"/>
+        <arg name="urdf_filepath" value="$(find hrii_task_board_description)/robots/voltmeter_circuit.urdf.xacro"/>
+    </include>
+    
+    <!-- Launch the BYOD -->
+    <group ns="byod">
+        <node pkg="hrii_robothon_byod" type="main_byod" name="main_byod" output="screen" respawn="false">
+            <param name="left_robot_id" value="$(arg left_robot_id)"/>
+            <param name="right_robot_id" value="$(arg right_robot_id)"/>
+            <param name="left_robot_launch" value="$(arg left_robot_launch)"/>
+            <param name="right_robot_launch" value="$(arg right_robot_launch)"/>
+            <rosparam file="$(arg byod_order_config_file)"/>
+        </node>
+
+        <node pkg="hrii_robothon_byod" type="homing_byod" name="homing_byod" output="screen" respawn="false"/>
+        <node pkg="hrii_robothon_byod" type="battery_opening_byod" name="battery_opening_byod" output="screen" respawn="false"/>
+        <node pkg="hrii_robothon_byod" type="power_on_voltmeter_byod" name="power_on_voltmeter_byod" output="screen" respawn="false"/>
+        <node pkg="hrii_robothon_byod" type="probe_circuit_byod" name="probe_circuit_byod" output="screen" respawn="false"/>
+        <node pkg="hrii_robothon_byod" type="battery_screening_byod" name="battery_screening_byod" output="screen" respawn="false"/>
+        
+    </group>
+
+    <node if="$(arg launch_rviz)" pkg="rviz" type="rviz" output="screen" name="rviz" args="-d $(arg rviz_config_file)"/>
+     
+</launch>
